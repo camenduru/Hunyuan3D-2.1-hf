@@ -269,7 +269,7 @@ height="{height}" width="100%" frameborder="0"></iframe>'
         </div>
     """
 
-@spaces.GPU(duration=50)
+@spaces.GPU(duration=60)
 def _gen_shape(
     caption=None,
     image=None,
@@ -378,7 +378,7 @@ def _gen_shape(
     main_image = image if not MV_MODE else image['front']
     return mesh, main_image, save_folder, stats, seed
 
-@spaces.GPU(duration=110)
+@spaces.GPU(duration=130)
 def generation_all(
     caption=None,
     image=None,
