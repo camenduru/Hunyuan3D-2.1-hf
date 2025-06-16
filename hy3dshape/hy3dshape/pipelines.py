@@ -602,7 +602,7 @@ class Hunyuan3DDiTPipeline:
         batch_size = image.shape[0]
 
         t_dtype = torch.long
-        inner_scheduler = copy.deepcopy(scheduler)
+        inner_scheduler = copy.deepcopy(self.scheduler)
         timesteps, num_inference_steps = retrieve_timesteps(
             inner_scheduler, num_inference_steps, device, timesteps, sigmas)
 
@@ -735,7 +735,7 @@ class Hunyuan3DDiTFlowMatchingPipeline(Hunyuan3DDiTPipeline):
 
         batch_size = image.shape[0]
 
-        inner_scheduler = copy.deepcopy(scheduler)
+        inner_scheduler = copy.deepcopy(self.scheduler)
 
         # 5. Prepare timesteps
         # NOTE: this is slightly different from common usage, we start from 0.
