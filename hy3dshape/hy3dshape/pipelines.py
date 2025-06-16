@@ -27,6 +27,7 @@ from diffusers.utils.torch_utils import randn_tensor
 from diffusers.utils.import_utils import is_accelerate_version, is_accelerate_available
 from tqdm import tqdm
 
+import copy
 from .models.autoencoders import ShapeVAE
 from .models.autoencoders import SurfaceExtractors
 from .utils import logger, synchronize_timer, smart_load_model
@@ -601,8 +602,9 @@ class Hunyuan3DDiTPipeline:
         batch_size = image.shape[0]
 
         t_dtype = torch.long
+        inner_scheduler = copy.deepcopy(scheduler)
         timesteps, num_inference_steps = retrieve_timesteps(
-            self.scheduler, num_inference_steps, device, timesteps, sigmas)
+            inner_scheduler, num_inference_steps, device, timesteps, sigmas)
 
         latents = self.prepare_latents(batch_size, dtype, device, generator)
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
@@ -621,7 +623,7 @@ class Hunyuan3DDiTPipeline:
                     latent_model_input = torch.cat([latents] * (3 if dual_guidance else 2))
                 else:
                     latent_model_input = latents
-                latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
+                latent_model_input = inner_scheduler.scale_model_input(latent_model_input, t)
 
                 # predict the noise residual
                 timestep_tensor = torch.tensor([t], dtype=t_dtype, device=device)
@@ -642,11 +644,11 @@ class Hunyuan3DDiTPipeline:
                         noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_cond - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1
-                outputs = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs)
+                outputs = inner_scheduler.step(noise_pred, t, latents, **extra_step_kwargs)
                 latents = outputs.prev_sample
 
                 if callback is not None and i % callback_steps == 0:
-                    step_idx = i // getattr(self.scheduler, "order", 1)
+                    step_idx = i // getattr(inner_scheduler, "order", 1)
                     callback(step_idx, t, outputs)
 
         return self._export(
@@ -733,11 +735,13 @@ class Hunyuan3DDiTFlowMatchingPipeline(Hunyuan3DDiTPipeline):
 
         batch_size = image.shape[0]
 
+        inner_scheduler = copy.deepcopy(scheduler)
+
         # 5. Prepare timesteps
         # NOTE: this is slightly different from common usage, we start from 0.
         sigmas = np.linspace(0, 1, num_inference_steps) if sigmas is None else sigmas
         timesteps, num_inference_steps = retrieve_timesteps(
-            self.scheduler,
+            inner_scheduler,
             num_inference_steps,
             device,
             sigmas=sigmas,
@@ -760,7 +764,7 @@ class Hunyuan3DDiTFlowMatchingPipeline(Hunyuan3DDiTPipeline):
 
                 # NOTE: we assume model get timesteps ranged from 0 to 1
                 timestep = t.expand(latent_model_input.shape[0]).to(latents.dtype)
-                timestep = timestep / self.scheduler.config.num_train_timesteps
+                timestep = timestep / inner_scheduler.config.num_train_timesteps
                 noise_pred = self.model(latent_model_input, timestep, cond, guidance=guidance)
 
                 if do_classifier_free_guidance:
@@ -768,13 +772,14 @@ class Hunyuan3DDiTFlowMatchingPipeline(Hunyuan3DDiTPipeline):
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_cond - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1
-                outputs = self.scheduler.step(noise_pred, t, latents)
+                outputs = inner_scheduler.step(noise_pred, t, latents)
                 latents = outputs.prev_sample
 
                 if callback is not None and i % callback_steps == 0:
-                    step_idx = i // getattr(self.scheduler, "order", 1)
+                    step_idx = i // getattr(inner_scheduler, "order", 1)
                     callback(step_idx, t, outputs)
 
+        del inner_scheduler
         return self._export(
             latents,
             output_type,
