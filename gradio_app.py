@@ -285,6 +285,38 @@ def _gen_shape(
     num_chunks=200000,
     randomize_seed: bool = False,
 ):
+    """
+    Generate a 3D shape from text caption or image input using Hunyuan3D pipeline.
+    
+    This function handles the core 3D shape generation process, including image preprocessing,
+    background removal, and 3D mesh generation from various input modalities.
+    
+    Args:
+        caption (str, optional): Text description for shape generation. Defaults to None.
+        image (PIL.Image, optional): Input image for image-to-3D generation. Defaults to None.
+        mv_image_front (PIL.Image, optional): Front view image for multi-view mode. Defaults to None.
+        mv_image_back (PIL.Image, optional): Back view image for multi-view mode. Defaults to None.
+        mv_image_left (PIL.Image, optional): Left view image for multi-view mode. Defaults to None.
+        mv_image_right (PIL.Image, optional): Right view image for multi-view mode. Defaults to None.
+        steps (int, optional): Number of inference steps. Defaults to 50.
+        guidance_scale (float, optional): Guidance scale for diffusion process. Defaults to 7.5.
+        seed (int, optional): Random seed for reproducibility. Defaults to 1234.
+        octree_resolution (int, optional): Resolution for octree representation. Defaults to 256.
+        check_box_rembg (bool, optional): Whether to remove background from input images. Defaults to False.
+        num_chunks (int, optional): Number of chunks for processing. Defaults to 200000.
+        randomize_seed (bool, optional): Whether to randomize the seed. Defaults to False.
+        
+    Returns:
+        tuple: Contains (mesh, main_image, save_folder, stats, seed)
+            - mesh: Generated 3D mesh object
+            - main_image: Primary input image used for generation
+            - save_folder: Directory where outputs are saved
+            - stats: Generation statistics and metadata
+            - seed: Final seed value used for generation
+            
+    Raises:
+        gr.Error: If no input (caption or image) is provided in single-view mode, or no view images in multi-view mode.
+    """
     if not MV_MODE and image is None and caption is None:
         raise gr.Error("Please provide either a caption or an image.")
     if MV_MODE:
@@ -394,6 +426,36 @@ def generation_all(
     num_chunks=200000,
     randomize_seed: bool = False,
 ):
+    """
+    Complete pipeline for generating both 3D shape and textured mesh from user inputs.
+    
+    This function orchestrates the entire generation process including shape generation,
+    face reduction, texture painting, and GLB export. It's triggered when users click
+    the "Gen Textured Shape" button.
+    
+    Args:
+        caption (str, optional): Text description for shape generation. Defaults to None.
+        image (PIL.Image, optional): Input image for image-to-3D generation. Defaults to None.
+        mv_image_front (PIL.Image, optional): Front view image for multi-view mode. Defaults to None.
+        mv_image_back (PIL.Image, optional): Back view image for multi-view mode. Defaults to None.
+        mv_image_left (PIL.Image, optional): Left view image for multi-view mode. Defaults to None.
+        mv_image_right (PIL.Image, optional): Right view image for multi-view mode. Defaults to None.
+        steps (int, optional): Number of inference steps. Defaults to 50.
+        guidance_scale (float, optional): Guidance scale for diffusion process. Defaults to 7.5.
+        seed (int, optional): Random seed for reproducibility. Defaults to 1234.
+        octree_resolution (int, optional): Resolution for octree representation. Defaults to 256.
+        check_box_rembg (bool, optional): Whether to remove background from input images. Defaults to False.
+        num_chunks (int, optional): Number of chunks for processing. Defaults to 200000.
+        randomize_seed (bool, optional): Whether to randomize the seed. Defaults to False.
+        
+    Returns:
+        tuple: Contains (file_out, glb_path_textured, model_viewer_html_textured, stats, seed)
+            - file_out: Path to the generated white mesh file
+            - glb_path_textured: Path to the textured GLB file
+            - model_viewer_html_textured: HTML content for 3D model viewer
+            - stats: Generation statistics and timing information
+            - seed: Final seed value used for generation
+    """
     start_time_0 = time.time()
     mesh, image, save_folder, stats, seed = _gen_shape(
         caption,
@@ -476,6 +538,34 @@ def shape_generation(
     num_chunks=200000,
     randomize_seed: bool = False,
 ):
+    """
+    Generate a 3D shape without texturing from user inputs.
+    
+    This function handles shape generation only, creating a white/untextured 3D mesh.
+    It's triggered when users click the "Gen Shape" button.
+    
+    Args:
+        caption (str, optional): Text description for shape generation. Defaults to None.
+        image (PIL.Image, optional): Input image for image-to-3D generation. Defaults to None.
+        mv_image_front (PIL.Image, optional): Front view image for multi-view mode. Defaults to None.
+        mv_image_back (PIL.Image, optional): Back view image for multi-view mode. Defaults to None.
+        mv_image_left (PIL.Image, optional): Left view image for multi-view mode. Defaults to None.
+        mv_image_right (PIL.Image, optional): Right view image for multi-view mode. Defaults to None.
+        steps (int, optional): Number of inference steps. Defaults to 50.
+        guidance_scale (float, optional): Guidance scale for diffusion process. Defaults to 7.5.
+        seed (int, optional): Random seed for reproducibility. Defaults to 1234.
+        octree_resolution (int, optional): Resolution for octree representation. Defaults to 256.
+        check_box_rembg (bool, optional): Whether to remove background from input images. Defaults to False.
+        num_chunks (int, optional): Number of chunks for processing. Defaults to 200000.
+        randomize_seed (bool, optional): Whether to randomize the seed. Defaults to False.
+        
+    Returns:
+        tuple: Contains (file_out, model_viewer_html, stats, seed)
+            - file_out: Gradio update with path to the generated mesh file
+            - model_viewer_html: HTML content for 3D model viewer
+            - stats: Generation statistics and timing information
+            - seed: Final seed value used for generation
+    """
     start_time_0 = time.time()
     mesh, image, save_folder, stats, seed = _gen_shape(
         caption,
@@ -716,6 +806,22 @@ Fast for very complex cases, Standard seldom use.',
         )
 
         def on_gen_mode_change(value):
+            """
+            Update the number of inference steps based on the selected generation mode.
+            
+            This function is triggered when the user changes the generation mode radio button
+            in the Options tab. It automatically adjusts the number of steps for optimal
+            performance based on the selected mode.
+            
+            Args:
+                value (str): The selected generation mode ('Turbo', 'Fast', or 'Standard')
+                
+            Returns:
+                gr.update: Gradio update object with the new number of steps value
+                    - Turbo: 5 steps (fastest)
+                    - Fast: 10 steps (balanced)
+                    - Standard: 30 steps (highest quality)
+            """
             if value == 'Turbo':
                 return gr.update(value=5)
             elif value == 'Fast':
@@ -726,6 +832,22 @@ Fast for very complex cases, Standard seldom use.',
         gen_mode.change(on_gen_mode_change, inputs=[gen_mode], outputs=[num_steps])
 
         def on_decode_mode_change(value):
+            """
+            Update the octree resolution based on the selected decoding mode.
+            
+            This function is triggered when the user changes the decoding mode radio button
+            in the Options tab. It automatically adjusts the octree resolution to match
+            the selected quality level for mesh export.
+            
+            Args:
+                value (str): The selected decoding mode ('Low', 'Standard', or 'High')
+                
+            Returns:
+                gr.update: Gradio update object with the new octree resolution value
+                    - Low: 196 resolution (faster processing, lower quality)
+                    - Standard: 256 resolution (balanced)
+                    - High: 384 resolution (slower processing, higher quality)
+            """
             if value == 'Low':
                 return gr.update(value=196)
             elif value == 'Standard':
@@ -738,6 +860,29 @@ Fast for very complex cases, Standard seldom use.',
 
         def on_export_click(file_out, file_out2, file_type, 
                             reduce_face, export_texture, target_face_num):
+            """
+            Handle mesh export with user-specified options and format conversion.
+            
+            This function is triggered when the user clicks the "Transform" button in the Export tab.
+            It processes the generated mesh according to user preferences, applies post-processing
+            operations, and exports to the desired format.
+            
+            Args:
+                file_out (str): Path to the base generated mesh file
+                file_out2 (str): Path to the textured mesh file (if available)
+                file_type (str): Desired export format ('glb', 'obj', 'ply', 'stl')
+                reduce_face (bool): Whether to apply mesh simplification
+                export_texture (bool): Whether to export textured version
+                target_face_num (int): Target number of faces for mesh simplification
+                
+            Returns:
+                tuple: Contains (model_viewer_html, file_export)
+                    - model_viewer_html: Updated HTML for 3D model preview
+                    - file_export: Gradio update with path to the exported file
+                    
+            Raises:
+                gr.Error: If no mesh has been generated yet
+            """
             if file_out is None:
                 raise gr.Error('Please generate a mesh first.')
 
@@ -917,7 +1062,7 @@ if __name__ == '__main__':
         torch.cuda.empty_cache()
         
     demo = build_app()
-    app = gr.mount_gradio_app(app, demo, path="/")
+    app = gr.mount_gradio_app(app, demo, mcp_server=True, path="/")
 
     if ENV == 'Huggingface':
         # for Zerogpu
