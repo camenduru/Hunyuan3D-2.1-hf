@@ -23,7 +23,7 @@ short_description: Image-to-3D Generation
   <a href=https://huggingface.co/tencent/Hunyuan3D-2.1 target="_blank"><img src=https://img.shields.io/badge/%F0%9F%A4%97%20Models-d96902.svg height=22px></a>
   <a href=https://3d-models.hunyuan.tencent.com/ target="_blank"><img src= https://img.shields.io/badge/Page-bb8a2e.svg?logo=github height=22px></a>
   <a href=https://discord.gg/dNBrdrGGMa target="_blank"><img src= https://img.shields.io/badge/Discord-white.svg?logo=discord height=22px></a>
-  <a href=https://arxiv.org/abs/2501.12202 target="_blank"><img src=https://img.shields.io/badge/Report-b5212f.svg?logo=arxiv height=22px></a>
+  <a href=https://arxiv.org/abs/2506.15442 target="_blank"><img src=https://img.shields.io/badge/Report-b5212f.svg?logo=arxiv height=22px></a>
   <a href=https://x.com/TencentHunyuan target="_blank"><img src=https://img.shields.io/badge/Hunyuan-black.svg?logo=x height=22px></a>
  <a href="#community-resources" target="_blank"><img src=https://img.shields.io/badge/Community-lavender.svg?logo=homeassistantcommunitystore height=22px></a>
 </div>
@@ -37,6 +37,7 @@ short_description: Image-to-3D Generation
 
 ## 🔥 News
 
+- Jun 19, 2025: 👋 We present the [technical report](https://arxiv.org/abs/2506.15442) of Hunyuan3D-2.1, please check out the details and spark some discussion!
 - Jun 13, 2025: 🤗 We release the first production-ready 3D asset generation model, Hunyuan3D-2.1!
 
 > Join our **[Wechat](#)** and **[Discord](https://discord.gg/dNBrdrGGMa)** group to discuss and find help from us.
@@ -90,8 +91,8 @@ It takes 10 GB VRAM for shape generation, 21GB for texture generation and 29GB f
 
 | Model                      | Description                 | Date       | Size | Huggingface                                                                               |
 |----------------------------|-----------------------------|------------|------|-------------------------------------------------------------------------------------------| 
-| Hunyuan3D-Shape-v2-1         | Image to Shape Model        | 2025-01-21 | 3.3B | [Download](https://huggingface.co/tencent/Hunyuan3D-2.1/tree/main/hunyuan3d-dit-v2-1)         |
-| Hunyuan3D-Paint-v2-1       | Texture Generation Model    | 2025-01-21 | 2B | [Download](https://huggingface.co/tencent/Hunyuan3D-2.1/tree/main/hunyuan3d-paint-v2-1)       |
+| Hunyuan3D-Shape-v2-1         | Image to Shape Model        | 2025-06-14 | 3.3B | [Download](https://huggingface.co/tencent/Hunyuan3D-2.1/tree/main/hunyuan3d-dit-v2-1)         |
+| Hunyuan3D-Paint-v2-1       | Texture Generation Model    | 2025-06-14 | 2B | [Download](https://huggingface.co/tencent/Hunyuan3D-2.1/tree/main/hunyuan3d-paint-v2-1)       |
 
 
 ## 🤗 Get Started with Hunyuan3D 2.1
@@ -152,6 +153,15 @@ python3 gradio_app.py \
 If you found this repository helpful, please cite our reports:
 
 ```bibtex
+@misc{hunyuan3d2025hunyuan3d,
+    title={Hunyuan3D 2.1: From Images to High-Fidelity 3D Assets with Production-Ready PBR Material},
+    author={Team Hunyuan3D and Shuhui Yang and Mingxin Yang and Yifei Feng and Xin Huang and Sheng Zhang and Zebin He and Di Luo and Haolin Liu and Yunfei Zhao and Qingxiang Lin and Zeqiang Lai and Xianghui Yang and Huiwen Shi and Zibo Zhao and Bowen Zhang and Hongyu Yan and Lifu Wang and Sicong Liu and Jihong Zhang and Meng Chen and Liang Dong and Yiwen Jia and Yulin Cai and Jiaao Yu and Yixuan Tang and Dongyuan Guo and Junlin Yu and Hao Zhang and Zheng Ye and Peng He and Runzhou Wu and Shida Wei and Chao Zhang and Yonghao Tan and Yifu Sun and Lin Niu and Shirui Huang and Bojian Zheng and Shu Liu and Shilin Chen and Xiang Yuan and Xiaofeng Yang and Kai Liu and Jianchen Zhu and Peng Chen and Tian Liu and Di Wang and Yuhong Liu and Linus and Jie Jiang and Jingwei Huang and Chunchao Guo},
+    year={2025},
+    eprint={2506.15442},
+    archivePrefix={arXiv},
+    primaryClass={cs.CV}
+}
+
 @misc{hunyuan3d22025tencent,
     title={Hunyuan3D 2.0: Scaling Diffusion Models for High Resolution Textured 3D Assets Generation},
     author={Tencent Hunyuan3D Team},
