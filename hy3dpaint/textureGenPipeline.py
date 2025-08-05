@@ -38,11 +38,11 @@ class Hunyuan3DPaintConfig:
     def __init__(self, max_num_view, resolution):
         self.device = "cuda"
 
-        self.multiview_cfg_path = "cfgs/hunyuan-paint-pbr.yaml"
-        self.custom_pipeline = "hunyuanpaintpbr"
-        self.multiview_pretrained_path = "tencent/Hunyuan3D-2.1"
-        self.dino_ckpt_path = "facebook/dinov2-giant"
-        self.realesrgan_ckpt_path = "ckpt/RealESRGAN_x4plus.pth"
+        self.multiview_cfg_path = "/content/Hunyuan3D-2.1/hy3dpaint/cfgs/hunyuan-paint-pbr.yaml"
+        self.custom_pipeline = "/content/Hunyuan3D-2.1/hy3dpaint/hunyuanpaintpbr"
+        self.multiview_pretrained_path = "/content/Hunyuan3D-2.1/ckpt"
+        self.dino_ckpt_path = "/content/Hunyuan3D-2.1/ckpt/dinov2-giant"
+        self.realesrgan_ckpt_path = "/content/Hunyuan3D-2.1/hy3dpaint/ckpt/RealESRGAN_x4plus.pth"
 
         self.raster_mode = "cr"
         self.bake_mode = "back_sample"
