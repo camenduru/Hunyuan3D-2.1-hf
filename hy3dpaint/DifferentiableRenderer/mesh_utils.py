@@ -14,7 +14,7 @@
 
 import os
 import cv2
-import bpy
+# import bpy  # Blender Python API - commented out
 import math
 import numpy as np
 from io import StringIO
@@ -197,66 +197,267 @@ def save_mesh(mesh_path, vtx_pos, pos_idx, vtx_uv, uv_idx, texture, metallic=Non
     )
 
 
-def _setup_blender_scene():
-    """Setup Blender scene for conversion."""
-    if "convert" not in bpy.data.scenes:
-        bpy.data.scenes.new("convert")
-    bpy.context.window.scene = bpy.data.scenes["convert"]
+def convert_mesh(
+    input_path: str,
+    output_path: str,
+    shade_type: str = "SMOOTH",
+    auto_smooth_angle: float = 60,
+    merge_vertices: bool = False,
+    fix_mesh: bool = True
+) -> bool:
+    """
+    Universal mesh converter that handles multiple formats.
+    
+    Args:
+        input_path: Path to input mesh file
+        output_path: Path to output mesh file  
+        shade_type: Type of shading ("SMOOTH", "FLAT", "AUTO_SMOOTH")
+        auto_smooth_angle: Angle for auto smooth in degrees
+        merge_vertices: Whether to merge duplicate vertices
+        fix_mesh: Whether to fix mesh issues automatically
+        
+    Returns:
+        bool: True if conversion successful, False otherwise
+    """
+    try:
+        import trimesh
+        
+        print(f"Converting {input_path} -> {output_path}")
+        
+        # Check if input file exists
+        if not os.path.exists(input_path):
+            print(f"Error: Input file does not exist: {input_path}")
+            return False
+        
+        # Get file extensions
+        input_ext = os.path.splitext(input_path)[1].lower()
+        output_ext = os.path.splitext(output_path)[1].lower()
+        
+        # If same format and same file, nothing to do
+        if input_path == output_path:
+            print("Input and output are the same file, no conversion needed")
+            return True
+            
+        # If same format but different paths, copy file
+        if input_ext == output_ext:
+            import shutil
+            shutil.copy2(input_path, output_path)
+            print(f"Copied {input_ext.upper()} file from {input_path} to {output_path}")
+            return True
+        
+        # Load mesh based on input format
+        print(f"Loading {input_ext.upper()} file...")
+        
+        # Special handling for different formats
+        if input_ext in ['.glb', '.gltf']:
+            # Load GLTF/GLB
+            scene = trimesh.load(input_path)
+            if hasattr(scene, 'geometry') and scene.geometry:
+                mesh = list(scene.geometry.values())[0]
+            else:
+                mesh = scene
+        elif input_ext == '.obj':
+            # Load OBJ with materials if possible
+            try:
+                scene = trimesh.load(input_path, force='scene')
+                if hasattr(scene, 'geometry') and scene.geometry:
+                    mesh = list(scene.geometry.values())[0]
+                else:
+                    mesh = trimesh.load_mesh(input_path)
+            except:
+                mesh = trimesh.load_mesh(input_path)
+        else:
+            # Load other formats (PLY, STL, etc.)
+            mesh = trimesh.load_mesh(input_path)
+        
+        print(f"Mesh loaded: {len(mesh.vertices)} vertices, {len(mesh.faces)} faces")
+        
+        # Fix mesh if requested
+        if fix_mesh:
+            print("Fixing mesh issues...")
+            # Check if mesh has is_valid attribute, if not - check basic properties
+            try:
+                is_mesh_valid = hasattr(mesh, 'is_valid') and mesh.is_valid
+            except:
+                # Fallback: check basic mesh properties
+                is_mesh_valid = len(mesh.vertices) > 0 and len(mesh.faces) > 0
+            
+            if not is_mesh_valid:
+                print("Mesh needs fixing...")
+                try:
+                    mesh.fix_normals()
+                    mesh.remove_degenerate_faces()
+                    mesh.remove_duplicate_faces()
+                except Exception as e:
+                    print(f"Warning: Some mesh fixes failed: {e}")
+            else:
+                print("Mesh appears to be valid")
+        
+        # Merge vertices if requested
+        if merge_vertices:
+            print("Merging duplicate vertices...")
+            try:
+                mesh.merge_vertices()
+            except Exception as e:
+                print(f"Warning: Vertex merging failed: {e}")
+        
+        # Apply shading
+        if shade_type == "SMOOTH":
+            print("Applying smooth shading...")
+            try:
+                mesh.fix_normals()
+            except Exception as e:
+                print(f"Warning: Normal fixing failed: {e}")
+        elif shade_type == "FLAT":
+            print("Using flat shading...")
+            pass
+        elif shade_type == "AUTO_SMOOTH":
+            print("Applying auto smooth...")
+            try:
+                mesh.fix_normals()
+            except Exception as e:
+                print(f"Warning: Auto smooth failed: {e}")
+        
+        # Create output directory if needed
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        
+        # Export mesh
+        print(f"Exporting to {output_ext.upper()}...")
+        
+        # Try different export methods
+        export_success = False
+        for method_num, export_func in enumerate([
+            lambda: mesh.export(output_path, file_type=output_ext[1:]),  # Remove dot from extension
+            lambda: mesh.export(output_path),  # Auto-detect format
+            lambda: trimesh.Scene([mesh]).export(output_path)  # Export as scene
+        ], 1):
+            try:
+                export_func()
+                export_success = True
+                print(f"Export successful using method {method_num}")
+                break
+            except Exception as e:
+                print(f"Export method {method_num} failed: {e}")
+                if method_num == 3:  # Last method
+                    raise e
+        
+        if not export_success:
+            print("All export methods failed")
+            return False
+        
+        print(f"Conversion completed: {output_path}")
+        return True
+        
+    except Exception as e:
+        print(f"Error converting {input_path} to {output_path}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
-def _clear_scene_objects():
-    """Clear all objects from current Blender scene."""
-    for obj in bpy.context.scene.objects:
-        obj.select_set(True)
-        bpy.data.objects.remove(obj, do_unlink=True)
-
-
-def _select_mesh_objects():
-    """Select all mesh objects in scene."""
-    bpy.ops.object.select_all(action="DESELECT")
-    for obj in bpy.context.scene.objects:
-        if obj.type == "MESH":
-            obj.select_set(True)
-
-
-def _merge_vertices_if_needed(merge_vertices: bool):
-    """Merge duplicate vertices if requested."""
-    if not merge_vertices:
-        return
-
-    for obj in bpy.context.selected_objects:
-        if obj.type == "MESH":
-            bpy.context.view_layer.objects.active = obj
-            bpy.ops.object.mode_set(mode="EDIT")
-            bpy.ops.mesh.select_all(action="SELECT")
-            bpy.ops.mesh.remove_doubles()
-            bpy.ops.object.mode_set(mode="OBJECT")
-
-
-def _apply_shading(shade_type: str, auto_smooth_angle: float):
-    """Apply shading to selected objects."""
-    shading_ops = {
-        "SMOOTH": lambda: bpy.ops.object.shade_smooth(),
-        "FLAT": lambda: bpy.ops.object.shade_flat(),
-        "AUTO_SMOOTH": lambda: _apply_auto_smooth(auto_smooth_angle),
+def get_supported_formats():
+    """Get list of supported mesh formats."""
+    return {
+        'input': ['.obj', '.glb', '.gltf', '.ply', '.stl', '.off', '.3mf'],
+        'output': ['.obj', '.glb', '.gltf', '.ply', '.stl', '.off']
     }
 
-    if shade_type in shading_ops:
-        shading_ops[shade_type]()
+
+def is_mesh_file(file_path: str) -> bool:
+    """Check if file is a supported mesh format."""
+    ext = os.path.splitext(file_path)[1].lower()
+    supported = get_supported_formats()
+    return ext in supported['input']
 
 
-def _apply_auto_smooth(auto_smooth_angle: float):
-    """Apply auto smooth based on Blender version."""
-    angle_rad = math.radians(auto_smooth_angle)
-
-    if bpy.app.version < (4, 1, 0):
-        bpy.ops.object.shade_smooth(use_auto_smooth=True, auto_smooth_angle=angle_rad)
-    elif bpy.app.version < (4, 2, 0):
-        bpy.ops.object.shade_smooth_by_angle(angle=angle_rad)
-    else:
-        bpy.ops.object.shade_auto_smooth(angle=angle_rad)
+# def _setup_blender_scene():
+#     """Setup Blender scene for conversion."""
+#     if "convert" not in bpy.data.scenes:
+#         bpy.data.scenes.new("convert")
+#     bpy.context.window.scene = bpy.data.scenes["convert"]
 
 
+# def _clear_scene_objects():
+#     """Clear all objects from current Blender scene."""
+#     for obj in bpy.context.scene.objects:
+#         obj.select_set(True)
+#         bpy.data.objects.remove(obj, do_unlink=True)
+
+
+# def _select_mesh_objects():
+#     """Select all mesh objects in scene."""
+#     bpy.ops.object.select_all(action="DESELECT")
+#     for obj in bpy.context.scene.objects:
+#         if obj.type == "MESH":
+#             obj.select_set(True)
+
+
+# def _merge_vertices_if_needed(merge_vertices: bool):
+#     """Merge duplicate vertices if requested."""
+#     if not merge_vertices:
+#         return
+
+#     for obj in bpy.context.selected_objects:
+#         if obj.type == "MESH":
+#             bpy.context.view_layer.objects.active = obj
+#             bpy.ops.object.mode_set(mode="EDIT")
+#             bpy.ops.mesh.select_all(action="SELECT")
+#             bpy.ops.mesh.remove_doubles()
+#             bpy.ops.object.mode_set(mode="OBJECT")
+
+
+# def _apply_shading(shade_type: str, auto_smooth_angle: float):
+#     """Apply shading to selected objects."""
+#     shading_ops = {
+#         "SMOOTH": lambda: bpy.ops.object.shade_smooth(),
+#         "FLAT": lambda: bpy.ops.object.shade_flat(),
+#         "AUTO_SMOOTH": lambda: _apply_auto_smooth(auto_smooth_angle),
+#     }
+
+#     if shade_type in shading_ops:
+#         shading_ops[shade_type]()
+
+
+# def _apply_auto_smooth(auto_smooth_angle: float):
+#     """Apply auto smooth based on Blender version."""
+#     angle_rad = math.radians(auto_smooth_angle)
+
+#     if bpy.app.version < (4, 1, 0):
+#         bpy.ops.object.shade_smooth(use_auto_smooth=True, auto_smooth_angle=angle_rad)
+#     elif bpy.app.version < (4, 2, 0):
+#         bpy.ops.object.shade_smooth_by_angle(angle=angle_rad)
+#     else:
+#         bpy.ops.object.shade_auto_smooth(angle=angle_rad)
+
+
+# def convert_obj_to_glb(
+#     obj_path: str,
+#     glb_path: str,
+#     shade_type: str = "SMOOTH",
+#     auto_smooth_angle: float = 60,
+#     merge_vertices: bool = False,
+# ) -> bool:
+#     """Convert OBJ file to GLB format using Blender."""
+#     try:
+#         _setup_blender_scene()
+#         _clear_scene_objects()
+
+#         # Import OBJ file
+#         bpy.ops.wm.obj_import(filepath=obj_path)
+#         _select_mesh_objects()
+
+#         # Process meshes
+#         _merge_vertices_if_needed(merge_vertices)
+#         _apply_shading(shade_type, auto_smooth_angle)
+
+#         # Export to GLB
+#         bpy.ops.export_scene.gltf(filepath=glb_path, use_active_scene=True)
+#         return True
+#     except Exception:
+#         return False
+
+
+# Backward compatibility alias
 def convert_obj_to_glb(
     obj_path: str,
     glb_path: str,
@@ -264,21 +465,15 @@ def convert_obj_to_glb(
     auto_smooth_angle: float = 60,
     merge_vertices: bool = False,
 ) -> bool:
-    """Convert OBJ file to GLB format using Blender."""
-    try:
-        _setup_blender_scene()
-        _clear_scene_objects()
-
-        # Import OBJ file
-        bpy.ops.wm.obj_import(filepath=obj_path)
-        _select_mesh_objects()
-
-        # Process meshes
-        _merge_vertices_if_needed(merge_vertices)
-        _apply_shading(shade_type, auto_smooth_angle)
-
-        # Export to GLB
-        bpy.ops.export_scene.gltf(filepath=glb_path, use_active_scene=True)
-        return True
-    except Exception:
-        return False
+    """
+    Convert OBJ file to GLB format using trimesh.
+    This is a backward compatibility wrapper for convert_mesh function.
+    """
+    return convert_mesh(
+        input_path=obj_path,
+        output_path=glb_path,
+        shade_type=shade_type,
+        auto_smooth_angle=auto_smooth_angle,
+        merge_vertices=merge_vertices,
+        fix_mesh=True
+    )
